@@ -24,7 +24,7 @@ NOT_SENDER = 'You should input the right sender'
 INVALID_OPERATION = 'Invalid operation'
 UNEXISTING_ESCROW = 'Invalid escrowId'
 WRONG_USER = 'Invalid address'
-
+NOT_EXPIRY = 'Funds are still locked up'
 
 context = GetContext()
 
@@ -42,6 +42,24 @@ def main(op, args):
         else:
             Notify(ARG_ERROR)
             return False
+    elif op == 'moderate':
+        if len(args) == 3:
+            return accept_escrow(args[0], args[1], args[2])
+        else:
+            Notify(ARG_ERROR)
+            return False
+    elif op == 'release_escrow':
+        if len(args) == 3:
+            return accept_escrow(args[0], args[1], args[2])
+        else:
+            Notify(ARG_ERROR)
+            return False
+    elif op == 'refund':
+        if len(args) == 2:
+            return accept_escrow(args[0], args[1])
+        else:
+            Notify(ARG_ERROR)
+            return False
     else:
         Notify(INVALID_OPERATION)
         return False
@@ -51,12 +69,16 @@ def register_escrow(sender, seller_addr):
     register_escrow(seller_addr) -> escrow_id
     The buyer send some coins to the contract and receives an unique id for the escrow
     """
+
     #check if sender is correct
     if not CheckWitness(sender):
         Notify(NOT_SENDER)
         return False
 
     container = GetScriptContainer()
+
+    #get current block
+    c = GetHeight()
 
     # Use invocation tx hash as escrow_id
     tx_hash = GetTXHash(container)
@@ -73,14 +95,15 @@ def register_escrow(sender, seller_addr):
         'buyer_addr': sender,
         'amount': value,
         'moderator': None,
+        'expiry': c + (10950),
     }
     escrow = Serialize(escrow)
 
     Put(context, tx_hash, escrow)
 
-    Notify(tx_hash)
-
     return tx_hash
+
+
 
 def accept_escrow( sender, escrow_id):
     """
@@ -88,7 +111,6 @@ def accept_escrow( sender, escrow_id):
     The moderator accepts the escrow request.
     The timestamp of the last block is saved
     """
-    
 
     #check if sender is correct
     if not CheckWitness(sender):
@@ -103,6 +125,7 @@ def accept_escrow( sender, escrow_id):
 
     escrow = Deserialize(escrow)
 
+    #store new moderator
     escrow.moderator = sender
 
     escrow = Serialize(escrow)
@@ -114,23 +137,77 @@ def accept_escrow( sender, escrow_id):
 
 
 
-def moderate(context, escrow_id, to):
+def moderate(sender, to, escrow_id):
     """
     moderate(escrow_id, to)
     The buyer or the seller did not release the escrow,
     the moderator decides who deserves the coins
     """
-    Notify('TODO')
 
-def refund(context, escrow_id):
+    #check if sender is correct
+    if not CheckWitness(sender):
+        Notify(NOT_SENDER)
+        return False
+
+    # Check if the escrow exists
+    escrow = Get(context, escrow_id)
+    if not escrow:
+        Notify(UNEXISTING_ESCROW)
+        return False
+
+    escrow = Deserialize(escrow)
+
+    #get current block
+    c = GetHeight()
+    
+    # Check if sender is moderator
+    if escrow['moderator'] != sender:
+        Notify(WRONG_USER)
+        return False
+
+    #check if time-lock is over
+    if escrow['expiry'] >= c:
+        Notify(NOT_EXPIRY)
+        return False
+
+    # Check that moderator can only send funds to either buyer or seller
+    if escrow['seller_addr'] != to or escrow['buyer_addr'] != to:
+        Notify(WRONG_USER)
+        return False
+
+def refund(sender, escrow_id):
     """
     refund(escrow_id)
     Buyer claim a refund, the coins are sent back to him if
     more than one month is passed
     """
-    Notify('TODO')
+    #check if sender is correct
+    if not CheckWitness(sender):
+        Notify(NOT_SENDER)
+        return False
 
-def release_escrow(sender, escrow_id):
+    # Check if the escrow exists
+    escrow = Get(context, escrow_id)
+    if not escrow:
+        Notify(UNEXISTING_ESCROW)
+        return False
+
+    escrow = Deserialize(escrow)
+
+    #get current block
+    c = GetHeight()
+    
+    # Check if sender is moderator
+    if escrow['buyer_addr'] != sender:
+        Notify(WRONG_USER)
+        return False
+
+    #check if time-lock is over
+    if escrow['expiry'] >= c:
+        Notify(NOT_EXPIRY)
+        return False
+
+def release_escrow(sender, to,  escrow_id):
     """
     releaseEscrow(escrow_id)
     The buyer invoke this function, the funds are sent to the seller
@@ -148,8 +225,14 @@ def release_escrow(sender, escrow_id):
         return False
 
     escrow = Deserialize(escrow)
-    '''
-    if escrow.buyer_addr != sender:
+    
+    # Check if sender is buyer
+    if escrow['buyer_addr'] != sender:
         Notify(WRONG_USER)
         return False
-    '''
+
+    # Check if reciever is seller
+    if escrow['seller_addr'] != to:
+        Notify(WRONG_USER)
+        return False
+    
