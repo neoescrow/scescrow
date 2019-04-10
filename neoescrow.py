@@ -1,11 +1,11 @@
 '''
 # Build & run
-sc build_run /smart-contracts/neoescrow.py True False True 0710 05 registerEscrow ['sellerAddr']
-sc build_run /smart-contracts/neoescrow.py True False True 0710 05 acceptEscrow ['asdasd']
+sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 registerEscrow ['sellerAddr']
+sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 acceptEscrow ['asdasd']
 # Build
-sc build /smart-contracts/neoescrow.py
+sc build /smart-contracts/scescrow/neoescrow.py
 # Deploy
-sc deploy /smart-contracts/neoescrow.avm True False True 0710 05
+sc deploy /smart-contracts/scescrow/neoescrow.avm True False True 0710 05
 # Invoke
 
 # Convert result to string
