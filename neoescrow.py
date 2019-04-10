@@ -52,7 +52,7 @@ def register_escrow(sender, seller_addr):
     The buyer send some coins to the contract and receives an unique id for the escrow
     """
     #check if sender is correct
-    if CheckWitness(sender):
+    if not CheckWitness(sender):
         Notify(NOT_SENDER)
         return False
 
@@ -91,7 +91,7 @@ def accept_escrow( sender, escrow_id):
     
 
     #check if sender is correct
-    if CheckWitness(sender):
+    if not CheckWitness(sender):
         Notify(NOT_SENDER)
         return False
 
@@ -137,7 +137,7 @@ def release_escrow(sender, escrow_id):
     """
 
     #check if sender is correct
-    if CheckWitness(sender):
+    if not CheckWitness(sender):
         Notify(NOT_SENDER)
         return False
 
