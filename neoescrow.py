@@ -1,7 +1,7 @@
 '''
 # Build & run
-sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 registerEscrow ['sellerAddr']
-sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 acceptEscrow ['asdasd']
+sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 register_escrow ['seller_addr']
+sc build_run /smart-contracts/scescrow/neoescrow.py True False True 0710 05 accept_escrow ['seller_addr']
 # Build
 sc build /smart-contracts/scescrow/neoescrow.py
 # Deploy
@@ -14,25 +14,27 @@ In python cli: bytes.fromhex('4675636b796f75')
 
 from boa.interop.Neo.Runtime import Notify, CheckWitness, Serialize, Deserialize
 from boa.interop.Neo.Storage import Get, Put, Delete, GetContext
-from boa.interop.System.ExecutionEngine import GetCallingScriptHash
+from boa.interop.Neo.Transaction import GetTXHash, GetOutputs
+from boa.interop.Neo.Output import GetValue
+from boa.interop.System.ExecutionEngine import GetScriptContainer, GetExecutingScriptHash
 
 # Errors
 ARG_ERROR = 'Wrong number of arguments'
 INVALID_OPERATION = 'Invalid operation'
 UNEXISTING_ESCROW = 'Invalid escrowId'
 
-def Main(op, args):
+def main(op, args):
     context = GetContext()
 
-    if op == 'registerEscrow':
+    if op == 'register_escrow':
         if len(args) == 1:
-            return registerEscrow(context, args[0])
+            return register_escrow(context, args[0])
         else:
             Notify(ARG_ERROR)
             return False
-    elif op == 'acceptEscrow':
+    elif op == 'accept_escrow':
         if len(args) == 1:
-            return acceptEscrow(context, args[0])
+            return accept_escrow(context, args[0])
         else:
             Notify(ARG_ERROR)
             return False
@@ -40,49 +42,63 @@ def Main(op, args):
         Notify(INVALID_OPERATION)
         return False
 
-'''
-registerEscrow(sellerAddr) -> escrowId
-The buyer send some coins to the contract and receives an unique id for the escrow
-'''
-def registerEscrow(context, sellerAddr):
-    # Use invocation tx hash as key and escrowId?
-    tx = 'asdasd'
-    escrow = {'test': 'testtest'}
-    escrow = Serialize(escrow)
-    Put(context, tx, escrow)
-    return True
+def register_escrow(context, seller_addr):
+    """
+    register_escrow(seller_addr) -> escrow_id
+    The buyer send some coins to the contract and receives an unique id for the escrow
+    """
+    container = GetScriptContainer()
 
-'''
-acceptEscrow(escrowId)
-The moderator accepts the escrow request. The timestamp of the last block is saved
-'''
-def acceptEscrow(context, escrowId):
+    # Use invocation tx hash as escrow_id
+    tx_hash = GetTXHash(container)
+
+    # Calculate the assets value
+    outputs = GetOutputs(container)
+    value = 0
+    for output in outputs:
+        v = GetValue(output)
+        value += v
+
+    escrow = {
+        'seller_addr': seller_addr,
+        'amount': value
+    }
+    escrow = Serialize(escrow)
+
+    Put(context, tx_hash, escrow)
+
+    return tx_hash
+
+def accept_escrow(context, escrow_id):
+    """
+    accept_escrow(escrow_id)
+    The moderator accepts the escrow request.
+    The timestamp of the last block is saved
+    """
     # Check if the escrow exists
-    if not Get(escrowId):
+    if not Get(escrow_id):
         Notify(UNEXISTING_ESCROW)
         return False
 
-'''
-moderate(escrowId, to)
-The buyer or the seller did not release the escrow,
-the moderator decides who deserves the coins
-'''
-def moderate(context, escrowId, to):
+def moderate(context, escrow_id, to):
+    """
+    moderate(escrow_id, to)
+    The buyer or the seller did not release the escrow,
+    the moderator decides who deserves the coins
+    """
     Notify('TODO')
 
-'''
-refund(escrowId)
-Buyer claim a refund, the coins are sent back to him if
-more than one month is passed or the third person decides this.
-A % fee is sent to the moderator
-'''
-def refund(context, escrowId):
+def refund(context, escrow_id):
+    """
+    refund(escrow_id)
+    Buyer claim a refund, the coins are sent back to him if
+    more than one month is passed
+    """
     Notify('TODO')
 
-'''
-releaseEscrow(escrowId)
-Both buyer and seller can invoke this function, when both have done it,
-the funds are sent to the seller
-'''
-def releaseEscrow(context, escrowId):
+def release_escrow(context, escrow_id):
+    """
+    releaseEscrow(escrow_id)
+    The buyer invoke this function, the funds are sent to the seller
+    """
     Notify('TODO')
